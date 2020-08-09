@@ -6,33 +6,71 @@
 using namespace std;
 using namespace cv;
 
+void detectHScolor(const Mat& image, double minHue, double maxHue, 
+	double minSat, double maxSat, Mat& mask) {
+	// convert into HSV space
+	Mat hsv;
+	cvtColor(image, hsv, COLOR_BGR2HSV);
+	
+	// split the 3 channels into 3 images
+	vector<Mat> channels;
+
+	split(hsv, channels);
+	// channels[0] is the HUE
+	// channels[1] is the SATURATION
+	// channels[2] is the VALUE
+	
+	// Hue masking
+	Mat mask1; // under maxHue
+	threshold(channels[0], mask1, maxHue, 255, THRESH_BINARY_INV);
+	Mat mask2; // under maxHue
+	threshold(channels[0], mask2, minHue, 255, THRESH_BINARY);
+
+	Mat hueMask; // hue mask
+	if (minHue < maxHue)
+		hueMask = mask1 & mask2;
+	else
+		hueMask = mask1 | mask2;
+
+	// Saturation masking
+	// under maxSat
+	threshold(channels[1], mask1, maxSat, 255, THRESH_BINARY_INV);
+	// over minSat
+	threshold(channels[1], mask2, minSat, 255, THRESH_BINARY);
+	Mat satMask; // saturation mask
+	satMask = mask1 & mask2;
+
+	// combined mask
+	mask = hueMask & satMask;
+}
+
 
 int main() {
-	Mat image = imread("temple.jpg"); // image
-	Mat img = imread("temple.jpg");
-	Rect rectangle(50, 50, 600, 400); // rect 
-	Mat mask, bgModel, fgModel;
-	mask.create(image.size(), CV_8UC1);
+	Mat image = imread("face.jpg");
+	Mat mask;
+	detectHScolor(image, 160, 10, 25, 166, mask);
 
-	grabCut(image, mask, rectangle, bgModel, fgModel, 2, GC_INIT_WITH_RECT);
+	Mat detected(image.size(), CV_8UC3, Scalar(0, 0, 0));
+	image.copyTo(detected, mask);
 
-	for (int i = 0; i < image.rows; i++) {
-		for (int j = 0; j < image.cols; j++) {
-			if (mask.ptr(i, j)[0] == 0 || mask.ptr(i, j)[0] == 2) {
-				image.ptr(i, j)[0] = 70;
-				image.ptr(i, j)[1] = 70;
-				image.ptr(i, j)[2] = 70;
-			}
-		}
-	}
-	namedWindow("Original Image");
-	namedWindow("Result of GrabCut Algorithm");
-	cv::imshow("Original Image", img);
-	cv::imshow("Result of GrabCut Algorithm", image);
-	cv::waitKey(0);
-
+	imshow("Detection result", detected);
+	waitKey(0);
 	return 0;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
